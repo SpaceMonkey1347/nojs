@@ -1,0 +1,147 @@
+$light-square: #f0d9b5;
+$dark-square: #b58863;
+
+$rpc: #d32f2f;
+$bcp: #2c2c2c;
+
+$lsq: #eeeed2;
+$dsq: #769656;
+
+$red-highlight: #e57373;
+$red-base: #c62828;
+$red-shadow: #8e0000;
+
+$black-highlight: #5f6368;
+$black-base: #212121;
+$black-shadow: #0d0d0d;
+
+.board-container {
+  width: 100%;
+  width: 640px;
+}
+
+.board {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+  place-items: center;
+  width: round(down, 100%, 8px);
+  aspect-ratio: 1/1;
+  background: $light-square;
+  background-image:
+    linear-gradient(
+      45deg,
+      $dark-square 25%,
+      transparent 25% 75%,
+      $dark-square 75%
+    ),
+    linear-gradient(
+      45deg,
+      $dark-square 25%,
+      transparent 25% 75%,
+      $dark-square 75%
+    );
+  background-repeat: repeat;
+  background-size: calc(100% / 4) calc(100% / 4);
+  background-position:
+    0 0,
+    calc(100% / 6) calc(100% / 6);
+}
+
+.light-piece,
+.dark-piece {
+  position: relative;
+  z-index: 30;
+  // pointer-events: none;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 1/1;
+  border-radius: 50%;
+  grid-area: calc(9 - var(--x)) / calc(var(--y));
+
+  --x: 0;
+  --y: 0;
+  $files: a, b, c, d, e, f, g, h;
+
+  @for $rank from 1 through 8 {
+    &[data-square$="#{$rank}"] {
+      --x: #{$rank};
+    }
+  }
+
+  @each $file in $files {
+    $index: index($files, $file);
+
+    &[data-square^="#{$file}"] {
+      --y: #{$index};
+    }
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    margin: 4%;
+    width: 92%;
+    aspect-ratio: 1/1;
+    border-radius: 50%;
+  }
+
+  & > input.select-check {
+    position: fixed;
+    // pointer-events: auto;
+    opacity: 0%;
+
+    & + span {
+      display: block;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    &:checked + span {
+      &::before,
+      &::after {
+        content: "";
+        position: absolute;
+        // pointer-events: auto;
+        z-index: 1000;
+        width: 100%;
+        height: 100%;
+        background-color: transparentize(
+          $color: darken($color: $dark-square, $amount: 50%),
+          $amount: 0.5
+        );
+      }
+
+      &::before {
+        transform: translate(-100%, -100%);
+      }
+
+      &::after {
+        transform: translate(100%, -100%);
+      }
+    }
+  }
+}
+
+.light-piece::before {
+  background: radial-gradient(
+    $red-base 50%,
+    $red-highlight 52% 60%,
+    $red-shadow 62%
+  );
+}
+
+.dark-piece::before {
+  background: radial-gradient(
+    $black-base 50%,
+    $black-highlight 52% 60%,
+    $black-shadow 62%
+  );
+}
+
+.x-pos,
+.y-pos {
+  display: none;
+}

@@ -1,0 +1,313 @@
+$text-primary: white;
+$bg-primary: #141620;
+$bg-secondary: #223344;
+$bg-ternary: #152535;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: $bg-primary;
+}
+
+@property --turn {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.board-container {
+  --result: "Playing...";
+
+  --x1: 0;
+  --x2: 0;
+  --x3: 0;
+  --x4: 0;
+  --x5: 0;
+  --x6: 0;
+  --x7: 0;
+  --x8: 0;
+  --x9: 0;
+  --o1: 0;
+  --o2: 0;
+  --o3: 0;
+  --o4: 0;
+  --o5: 0;
+  --o6: 0;
+  --o7: 0;
+  --o8: 0;
+  --o9: 0;
+
+  --turn: calc(
+    var(--x1) + var(--x2) + var(--x3) + var(--x4) + var(--x5) + var(--x6) +
+      var(--x7) + var(--x8) + var(--x9) + var(--o1) + var(--o2) + var(--o3) +
+      var(--o4) + var(--o5) + var(--o6) + var(--o7) + var(--o8) + var(--o9)
+  );
+
+  position: relative;
+  width: 640px;
+  height: 640px;
+}
+
+.bar {
+  position: absolute;
+  width: 90%;
+  height: 5%;
+  background-color: transparent;
+  background-image: linear-gradient(#992030, #992030);
+  background-repeat: no-repeat;
+  background-position: left;
+  background-size: 0% 100%;
+  transition: background-size 1s ease-in;
+  // z-index: 100;
+  z-index: -1;
+}
+
+.game-over-lay {
+  opacity: 0%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #00000020;
+  transform: translateY(-100%);
+  // z-index: 200;
+  z-index: -1;
+  transition: opacity 1s ease;
+
+
+  .game-over-form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2em;
+    background-color: $bg-secondary;
+    border-radius: 1em;
+    color: $text-primary;
+  }
+
+  .reason::after {
+    content: var(--result);
+    display: block;
+    margin-bottom: 1em;
+    font-weight: 700;
+  }
+
+  button {
+    padding: 0.25em 0.5em;
+    background-color: white;
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: 500;
+  }
+
+  button:hover {
+    background-color: #eeffdd;
+  }
+}
+
+.board {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: 640px;
+  height: 640px;
+  z-index: 10;
+}
+
+// debug
+.board::after {
+  content: var(--result);
+  position: absolute;
+  transform: translateY(700px);
+  color: $text-primary;
+}
+
+@for $i from 1 through 9 {
+  .board-container:has(
+    > .board > .square:nth-of-type(#{$i}) > .x > input:checked
+  ) {
+    --x#{$i}: 1;
+  }
+}
+
+@for $i from 1 through 9 {
+  .board-container:has(
+    > .board > .square:nth-of-type(#{$i}) > .o > input:checked
+  ) {
+    --o#{$i}: 1;
+  }
+}
+
+.square:has(.x > input:checked) > .o {
+  display: none;
+}
+
+.square:has(.o > input:checked) > .x {
+  display: none;
+}
+
+$players: x, o;
+
+@mixin result-bar($direction, $slot) {
+  @if $direction == horizontal {
+    @if $slot == 1 {
+      transform: translate(5%, calc(-100% * 16.6666 - 50%)); // top
+    } @else if $slot == 2 {
+      transform: translate(5%, calc(-100% * 10 - 50%)); // middle
+    } @else if $slot == 3 {
+      transform: translate(5%, calc(-100% * 3.3333 - 50%)); // bottom
+    }
+  } @else if $direction == vertical {
+    @if $slot == 1 {
+      transform: translate(-31.3333%, calc(-100% * 10 - 50%)) rotate(90deg); // left
+    } @else if $slot == 2 {
+      transform: translate(5%, calc(-100% * 10 - 50%)) rotate(90deg); // middle
+    } @else if $slot == 3 {
+      transform: translate(42.6666%, calc(-100% * 10 - 50%)) rotate(90deg); // right
+    }
+  } @else if $direction == diagonal {
+    @if $slot == 1 {
+      transform: translate(5.5555%, calc(-100% * 10 - 50%)) rotate(45deg) scaleX(125%); // decending
+    } @else if $slot == 2 {
+      transform: translate(5.5555%, calc(-100% * 10 - 50%)) rotate(-45deg) scaleX(125%); // acending
+    }
+  }
+}
+
+@mixin in-a-row($player, $cell-1, $cell-2, $cell-3, $direction, $slot) {
+  .board-container:has(
+      .board > .square:nth-of-type(#{$cell-1}) > .#{$player} > input:checked
+    ):has(
+      .board > .square:nth-of-type(#{$cell-2}) > .#{$player} > input:checked
+    ):has(
+      .board > .square:nth-of-type(#{$cell-3}) > .#{$player} > input:checked
+    ) {
+    --result: "#{to-upper-case($player)} Wins!";
+    & > .board > .square {
+      pointer-events: none;
+    }
+    & > .game-over-lay {
+      z-index: 200;
+      opacity: 100%;
+    }
+    & > .bar {
+      z-index: 100;
+      background-size: 100% 100%;
+      @include result-bar($direction, $slot);
+    }
+  }
+}
+
+
+
+@each $player in $players {
+  @for $row from 1 through 3 {
+    $cell-1: ($row - 1) * 3 + 1;
+    $cell-2: ($row - 1) * 3 + 2;
+    $cell-3: ($row - 1) * 3 + 3;
+    $direction: horizontal;
+    @include in-a-row($player, $cell-1, $cell-2, $cell-3, $direction, $row);
+  }
+  @for $col from 1 through 3 {
+    $cell-1: $col;
+    $cell-2: $col + 3;
+    $cell-3: $col + 6;
+    $direction: vertical;
+    @include in-a-row($player, $cell-1, $cell-2, $cell-3, $direction, $col);
+  }
+  $direction: diagonal;
+  $cell-1: 1;
+  $cell-2: 5;
+  $cell-3: 9;
+  @include in-a-row($player, $cell-1, $cell-2, $cell-3, $direction, 1);
+  $cell-1: 3;
+  $cell-2: 5;
+  $cell-3: 7;
+  @include in-a-row($player, $cell-1, $cell-2, $cell-3, $direction, 2);
+}
+
+$selector: ".board-container";
+@for $square from 1 through 9 {
+  $selector: "#{$selector}:has(.board > .square:nth-of-type(#{$square}) input:checked)";
+}
+#{$selector} {
+  --result: "Draw!";
+  & > .board > .square {
+    pointer-events: none;
+  }
+  & > .game-over-lay {
+    z-index: 200;
+    opacity: 100%;
+  }
+}
+
+.square {
+  position: relative;
+  border: 4px solid $bg-primary;
+  width: 100%;
+  height: 100%;
+  background-color: $bg-ternary;
+}
+
+.x,
+.o {
+  opacity: 0%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #ffeeff;
+  & > input {
+    opacity: 0%;
+    position: absolute;
+  }
+  &:has(input:checked) {
+    pointer-events: none;
+  }
+  &:hover {
+    opacity: 50%;
+  }
+  &:has(input:checked) {
+    opacity: 100%;
+  }
+}
+
+.x {
+  background-color: #ffeeff;
+  z-index: calc(mod(var(--turn), 2) + 2);
+  & > span,
+  & > span::after {
+    display: block;
+    height: 25px;
+    width: 100%;
+    background-color: black;
+    transform: rotate(45deg);
+  }
+  & > span::after {
+    content: "";
+    transform: rotate(90deg);
+  }
+}
+
+.o {
+  background-color: #eeffff;
+  z-index: calc((mod(var(--turn), 2) * 2) + 2);
+  & > span {
+    border: 25px solid black;
+    border-radius: 50%;
+    margin: 10%;
+    height: 80%;
+    width: 80%;
+    background-color: transparent;
+  }
+}

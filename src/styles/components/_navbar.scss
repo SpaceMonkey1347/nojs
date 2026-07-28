@@ -1,0 +1,23 @@
+@use "../abstracts/variables" as *;
+
+.navbar {
+  ul {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    background-color: $bg-secondary;
+    list-style: none;
+  }
+
+  a {
+    display: block;
+    padding: 0.5em 1.5em;
+    color: $text-primary;
+    text-decoration: none;
+
+    &:hover {
+      background-color: $bg-ternary;
+    }
+  }
+}
