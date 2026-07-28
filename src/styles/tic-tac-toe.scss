@@ -81,7 +81,6 @@ body {
   z-index: -1;
   transition: opacity 1s ease;
 
-
   .game-over-form {
     display: flex;
     flex-direction: column;
@@ -121,14 +120,6 @@ body {
   z-index: 10;
 }
 
-// debug
-.board::after {
-  content: var(--result);
-  position: absolute;
-  transform: translateY(700px);
-  color: $text-primary;
-}
-
 @for $i from 1 through 9 {
   .board-container:has(
     > .board > .square:nth-of-type(#{$i}) > .x > input:checked
@@ -166,17 +157,23 @@ $players: x, o;
     }
   } @else if $direction == vertical {
     @if $slot == 1 {
-      transform: translate(-31.3333%, calc(-100% * 10 - 50%)) rotate(90deg); // left
+      transform: translate(-31.3333%, calc(-100% * 10 - 50%))
+        rotate(90deg); // left
     } @else if $slot == 2 {
       transform: translate(5%, calc(-100% * 10 - 50%)) rotate(90deg); // middle
     } @else if $slot == 3 {
-      transform: translate(42.6666%, calc(-100% * 10 - 50%)) rotate(90deg); // right
+      transform: translate(42.6666%, calc(-100% * 10 - 50%))
+        rotate(90deg); // right
     }
   } @else if $direction == diagonal {
     @if $slot == 1 {
-      transform: translate(5.5555%, calc(-100% * 10 - 50%)) rotate(45deg) scaleX(125%); // decending
+      transform: translate(5.5555%, calc(-100% * 10 - 50%))
+        rotate(45deg)
+        scaleX(125%); // decending
     } @else if $slot == 2 {
-      transform: translate(5.5555%, calc(-100% * 10 - 50%)) rotate(-45deg) scaleX(125%); // acending
+      transform: translate(5.5555%, calc(-100% * 10 - 50%))
+        rotate(-45deg)
+        scaleX(125%); // acending
     }
   }
 }
@@ -204,8 +201,6 @@ $players: x, o;
     }
   }
 }
-
-
 
 @each $player in $players {
   @for $row from 1 through 3 {
