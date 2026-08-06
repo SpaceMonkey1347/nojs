@@ -7,6 +7,8 @@ $bcp: #2c2c2c;
 $lsq: #eeeed2;
 $dsq: #769656;
 
+// piece colors
+
 $red-highlight: #e57373;
 $red-base: #c62828;
 $red-shadow: #8e0000;
@@ -16,132 +18,150 @@ $black-base: #212121;
 $black-shadow: #0d0d0d;
 
 .board-container {
+  position: relative;
   width: 100%;
-  width: 640px;
+  height: 640px;
 }
 
+.board-display {
+  position: absolute;
+  height: 100%;
+  width: 640px;
+  background-color: $light-square;
+
+  $even-img: linear-gradient(90deg, $dark-square 50%, $light-square 50%);
+  $odd-img: linear-gradient(90deg, $light-square 50%, $dark-square 50%);
+  & > .strip {
+    width: 100%;
+    height: calc(100% / 8);
+    background-size: calc(100% / 4) 100%;
+  }
+  & > .strip:nth-of-type(2n) {
+    background-color: $light-square;
+    background-image: $even-img;
+  }
+  & > .strip:nth-of-type(2n + 1) {
+    background-color: $dark-square;
+    background-image: $odd-img;
+  }
+} 
+
 .board {
-  position: relative;
-  z-index: 10;
+  position: absolute;
+  width: 640px;
+  height: 640px;
+}
+
+.dark-piece,
+.light-piece {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+form.dark-piece {
+}
+
+form.light-piece {
+}
+
+input.dead {
+}
+
+input.king {
+}
+
+.dark-piece .square:checked {
+  background-image: radial-gradient(
+    $black-base 50%,
+    $black-highlight 52% 60%,
+    $black-shadow 62% 70%,
+    transparent 72%
+  );
+  background-size: 90% 90%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.light-piece .square:checked {
+  background-image: radial-gradient(
+    $red-base 50%,
+    $red-highlight 52% 60%,
+    $red-shadow 62% 70%,
+    transparent 72%
+  );
+  background-size: 90% 90%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.squares {
+  position: absolute;
+  width: 100%;
+  height: 100%;
   display: grid;
   grid-template: repeat(8, 1fr) / repeat(8, 1fr);
   place-items: center;
-  width: round(down, 100%, 8px);
-  aspect-ratio: 1/1;
-  background: $light-square;
-  background-image:
-    linear-gradient(
-      45deg,
-      $dark-square 25%,
-      transparent 25% 75%,
-      $dark-square 75%
-    ),
-    linear-gradient(
-      45deg,
-      $dark-square 25%,
-      transparent 25% 75%,
-      $dark-square 75%
-    );
-  background-repeat: repeat;
-  background-size: calc(100% / 4) calc(100% / 4);
-  background-position:
-    0 0,
-    calc(100% / 6) calc(100% / 6);
 }
 
-.light-piece,
-.dark-piece {
-  position: relative;
-  z-index: 30;
-  // pointer-events: none;
-  box-sizing: border-box;
-  width: 100%;
-  aspect-ratio: 1/1;
+.square {
+  appearance: none;
   border-radius: 50%;
-  grid-area: calc(9 - var(--x)) / calc(var(--y));
-
-  --x: 0;
-  --y: 0;
-  $files: a, b, c, d, e, f, g, h;
-
-  @for $rank from 1 through 8 {
-    &[data-square$="#{$rank}"] {
-      --x: #{$rank};
-    }
-  }
-
-  @each $file in $files {
-    $index: index($files, $file);
-
-    &[data-square^="#{$file}"] {
-      --y: #{$index};
-    }
-  }
-
-  &::before {
-    content: "";
-    position: absolute;
-    margin: 4%;
-    width: 92%;
-    aspect-ratio: 1/1;
-    border-radius: 50%;
-  }
-
-  & > input.select-check {
-    position: fixed;
-    // pointer-events: auto;
-    opacity: 0%;
-
-    & + span {
-      display: block;
-      position: relative;
-      width: 100%;
-      height: 100%;
-    }
-
-    &:checked + span {
-      &::before,
-      &::after {
-        content: "";
-        position: absolute;
-        // pointer-events: auto;
-        z-index: 1000;
-        width: 100%;
-        height: 100%;
-        background-color: transparentize(
-          $color: darken($color: $dark-square, $amount: 50%),
-          $amount: 0.5
-        );
-      }
-
-      &::before {
-        transform: translate(-100%, -100%);
-      }
-
-      &::after {
-        transform: translate(100%, -100%);
-      }
-    }
-  }
+  height: 100%;
+  aspect-ratio: 1/1;
+  grid-column: span 2;
+  justify-self: start;
 }
 
-.light-piece::before {
-  background: radial-gradient(
-    $red-base 50%,
-    $red-highlight 52% 60%,
-    $red-shadow 62%
-  );
+.square:nth-child(8n+1),
+.square:nth-child(8n+2),
+.square:nth-child(8n+3),
+.square:nth-child(8n+4) {
+  justify-self: end;
 }
 
-.dark-piece::before {
-  background: radial-gradient(
-    $black-base 50%,
-    $black-highlight 52% 60%,
-    $black-shadow 62%
-  );
+.square:checked {
+  z-index: 1000;
 }
 
-.x-pos,
-.y-pos {
+.sources {
   display: none;
+  position: absolute;
+  user-select: none;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+  // z-index: 2500;
+  z-index: -1;
+}
+
+.source {
+  display: none;
+  grid-column: span 2;
+  width: 50%;
+  aspect-ratio: 1/1;
+  justify-self: start;
+  z-index: 20;
+  opacity: 10%;
+}
+
+.source:nth-child(8n+1),
+.source:nth-child(8n+2),
+.source:nth-child(8n+3),
+.source:nth-child(8n+4) {
+  justify-self: end;
+}
+
+.deselect {
+  display: none;
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  z-index: 10;
+  opacity: 10%;
+}
+
+.click-shield {
 }
