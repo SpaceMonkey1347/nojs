@@ -3,21 +3,33 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "concurrently \"pnpm run sass:watch\" \"pnpm run sync\"",
-    "sass:watch": "sass src/styles:src/dist/css --no-source-map --error-css --watch",
-    "sass:build": "sass src/styles:src/dist/css --no-source-map --error-css",
-    "sync": "browser-sync start --server 'src' --files 'src/**/*' --reload-delay 500 --no-notify",
+    "build": "pnpm run sass:build && pnpm run pug:build",
+    "dev": "node src/server.js",
+    "dev:sync": "concurrently \"pnpm run sass:watch\" \"pnpm run pug:watch\" \"pnpm run sync:proxy\" \"pnpm run dev\"",
+    "sass:watch": "sass src/styles:src/public/dist/css --no-source-map --error-css --watch",
+    "sass:build": "sass src/styles:src/public/dist/css --no-source-map --error-css",
+    "pug:watch": "pug -w ./src/views/static -o ./src/public/dist -P",
+    "pug:build": "pug ./src/views/static -o ./src/public/dist -P",
+    "sync:server": "browser-sync start --server 'src/public' --files 'src/public/**/*' --reload-delay 500 --no-notify",
+    "sync:proxy": "browser-sync start --proxy localhost:3000 --port 3001 --files 'src/**/*' --reload-delay 500 --no-notify",
+    "sync:server:watch": "concurrently \"pnpm run sass:watch\" \"pnpm run pug:watch\" \"pnpm run sync:server\"",
     "format": "prettier --write src/"
   },
   "keywords": [],
-  "author": "",
+  "author": "Domo",
   "license": "ISC",
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
     "browser-sync": "^3.0.4",
     "concurrently": "^10.0.3",
     "prettier": "^3.9.6",
+    "pug-cli": "1.0.0-alpha6",
     "sass": "^1.101.6"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "pug": "^3.0.4"
   }
 }

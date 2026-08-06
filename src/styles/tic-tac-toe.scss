@@ -186,7 +186,7 @@ $players: x, o;
     ):has(
       .board > .square:nth-of-type(#{$cell-3}) > .#{$player} > input:checked
     ) {
-    --result: "#{to-upper-case($player)} Wins!";
+    --result: "#{to-upper-case($player)} Wins!" !important;
     & > .board > .square {
       pointer-events: none;
     }
@@ -199,6 +199,21 @@ $players: x, o;
       background-size: 100% 100%;
       @include result-bar($direction, $slot);
     }
+  }
+}
+
+$selector: ".board-container";
+@for $square from 1 through 9 {
+  $selector: "#{$selector}:has(.board > .square:nth-of-type(#{$square}) input:checked)";
+}
+#{$selector} {
+  --result: "Draw!";
+  & > .board > .square {
+    pointer-events: none;
+  }
+  & > .game-over-lay {
+    z-index: 200;
+    opacity: 100%;
   }
 }
 
@@ -226,21 +241,6 @@ $players: x, o;
   $cell-2: 5;
   $cell-3: 7;
   @include in-a-row($player, $cell-1, $cell-2, $cell-3, $direction, 2);
-}
-
-$selector: ".board-container";
-@for $square from 1 through 9 {
-  $selector: "#{$selector}:has(.board > .square:nth-of-type(#{$square}) input:checked)";
-}
-#{$selector} {
-  --result: "Draw!";
-  & > .board > .square {
-    pointer-events: none;
-  }
-  & > .game-over-lay {
-    z-index: 200;
-    opacity: 100%;
-  }
 }
 
 .square {

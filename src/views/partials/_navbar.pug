@@ -1,0 +1,11 @@
+nav.navbar
+    ul
+        -
+            const links = [
+                { name: 'Home', url: '/' },
+                { name: 'Tic Tac Toe', url: '/tic-tac-toe.html' },
+                { name: 'Checkers', url: '/checkers.html' },
+                { name: 'Checkers2', url: '/dist/checkers.html' }]
+        each link in links
+            li
+                a(href=link.url)= link.name

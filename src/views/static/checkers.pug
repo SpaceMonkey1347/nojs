@@ -1,0 +1,61 @@
+mixin square(pos, target)
+    if pos == target
+        input.square(type="radio", name="square" checked)
+    else
+        input.square(type="radio", name="square")
+
+mixin piece(player, checked)
+    if player == 'light'
+        - checked = 32 - checked
+    else
+        - checked++
+    form(class=`${player}-piece` autocomplete="off")
+        - let row = 8
+        - let count = 0
+        .squares
+            while row--
+                - let squares = 3
+                if row % 2 == 1
+                    .empty
+                while squares--
+                    - count++
+                    +square(count, checked)
+                    .empty
+                - count++
+                +square(count, checked)
+                if row % 2 == 0
+                    .empty
+        .piece-state
+            label.dead-label
+                input.dead(type="checkbox")
+            label.king-label
+                input.king(type="checkbox")
+
+doctype html
+html
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport" content="width=device-width, initial-scale=1")
+        title Checkers
+        link(href="/dist/css/main.css" rel="stylesheet")
+        link(href="/dist/css/checkers2.css" rel="stylesheet")
+    body
+        include ../partials/_navbar.pug
+        .board-container
+            .board-display
+                - let strips = 8
+                while strips--
+                    .strip
+            .board
+                each player in ['dark', 'light']
+                    - let piece = 12
+                    while piece--
+                        +piece(player, piece)
+                form.sources(autocomplete="off")
+                    - let sourceSquares = 32
+                    while sourceSquares--
+                        input.source(type="radio" name="source")
+                    input.deselect(type="radio" name="source" checked)
+                - let shields = 32
+                while shields--
+                    .click-shield
