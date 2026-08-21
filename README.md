@@ -4,7 +4,7 @@ Currently, only tic-tac-toe is finished.
 
 To run with automatic page reloads and sass compilation:
 ```
-pnpm run start
+pnpm run dev:sync
 ```
 
 All pages can just be opend as is in a browser, just make sure to compile the sass.
