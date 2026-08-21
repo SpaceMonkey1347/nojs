@@ -1,26 +1,288 @@
+@use "sass:list";
+@use "sass:string";
+
+// board colors
+
 $light-square: #f0d9b5;
 $dark-square: #b58863;
-
-$rpc: #d32f2f;
-$bcp: #2c2c2c;
-
-$lsq: #eeeed2;
-$dsq: #769656;
 
 // piece colors
 
 $red-highlight: #e57373;
 $red-base: #c62828;
-$red-shadow: #8e0000;
+$red-edge: #8e0000;
 
 $black-highlight: #5f6368;
 $black-base: #212121;
-$black-shadow: #0d0d0d;
+$black-edge: #0d0d0d;
 
-.board-container {
+// semantic variables
+
+$z-bot: 100;
+$z-low: 200;
+$z-mid: 300;
+$z-hig: 400;
+$z-top: 500;
+
+$light: 1;
+$empty: 0;
+$dark: -1;
+
+$true: 1;
+$false: 0;
+$nil: -1;
+
+// if (a == b) { return 1 /*($true)*/ } else { return 0 /*($false)*/ }
+@function is_eq($a, $b) {
+  @return string.unquote("max(0, min(1, calc(1 - abs(#{$a} - #{$b}))))");
+}
+
+// OPTIMIZE: compiled file size, short variable names
+
+$z-pos: --zp;
+$z-blocker: --zb;
+$z-blockers: ();
+$z-source: --c;
+// template name, unused
+$square-state: --q;
+$square-states: ();
+@for $square from 1 through 32 {
+  $square-states: list.append($square-states, #{$square-state}#{$square});
+  $z-blockers: list.append($z-blockers, #{$z-blocker}#{$square});
+}
+$selected-source: --sc;
+$selected-source-mod-8: --s8;
+$selected-source-mod-4: --s4;
+$selected-piece: --sp;
+
+// valid moves
+$light-left: --ll;
+$light-right: --lr;
+$dark-left: --dl;
+$dark-right: --dr;
+$light-left-jump: --llj;
+$light-right-jump: --lrj;
+$dark-left-jump: --dlj;
+$dark-right-jump: --drj;
+
+$turn: --t;
+$king-selected: --iks;
+// template name, unused
+$dead-piece: --d;
+$dead-pieces: ();
+// template name, unused
+$king: --k;
+$kings: ();
+@for $piece from 1 through 24 {
+  $dead-pieces: list.append($dead-pieces, #{$dead-piece}#{$piece});
+  $kings: list.append($kings, #{$king}#{$piece});
+}
+$is-dead: --id;
+$is-king: --ik;
+
+@mixin number($name, $initial-value: 0) {
+  @if string.slice($name, 1, 2) == "--" {
+    $name: string.slice($name, 3);
+  }
+  @property --#{$name} {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: $initial-value;
+  }
+}
+
+@include number($turn);
+
+// although squares are 1 indexed,
+// source must default to a negative number because 0 will match a piece to empty squares
+@include number($selected-source, -1);
+// dev tools will hide a @property variable when it's declaration matches it's `initial-value` unless/until the value is changed
+@include number($selected-piece, 0);
+
+@include number($selected-source-mod-4);
+@include number($selected-source-mod-8);
+
+@include number($light-left);
+@include number($light-right);
+@include number($dark-left);
+@include number($dark-right);
+@include number($light-left-jump);
+@include number($light-right-jump);
+@include number($dark-left-jump);
+@include number($dark-right-jump);
+
+.game-container {
   position: relative;
   width: 100%;
   height: 640px;
+
+  #{$z-pos}: #{$z-bot}; // bot or hig
+  #{$z-blocker}: #{$z-low}; // low or top
+  #{$z-source}: #{$z-mid}; // fixed
+  @for $square from 1 through 32 {
+    #{list.nth($square-states, $square)}: $empty;
+    #{list.nth($z-blockers, $square)}: $z-low;
+  }
+
+  @for $piece from 1 through 24 {
+    #{list.nth($dead-pieces, $piece)}: $false;
+    #{list.nth($kings, $piece)}: $false;
+  }
+
+  #{$selected-source}: $nil;
+  #{$selected-source-mod-8}: mod(var(#{$selected-source}), 8);
+  #{$selected-source-mod-4}: mod(var(#{$selected-source}), 4);
+
+  // get square state of selected source (light, dark, empty)
+  $sq-check: "";
+  @for $var from 2 through 32 {
+    $sq-check: "#{$sq-check} + (max(0, 1 - abs(var(#{$selected-source}) - abs(var(#{list.nth($square-states, $var)})) * #{$var}))) * var(#{list.nth($square-states, $var)})";
+  }
+  // prettier-ignore
+  #{$selected-piece}: calc(
+    max(0, 1 - (abs(var(#{$selected-source})
+      - abs(var(#{list.nth($square-states, 1)})) * 1)))
+      * var(#{list.nth($square-states, 1)}) #{$sq-check}
+  );
+
+  #{$turn}: $light;
+  #{$king-selected}: $false;
+
+  // legal move section, defined by setting z-index of blockers to $z-bot
+
+  $s8: $selected-source-mod-8;
+  $s4: $selected-source-mod-4;
+
+  // determine valid moves based on relative position to selected square
+  // not applying turn, piece color, captures, or obstructing pieces just yet.
+
+  // s = $selected-source % (8 or 4)
+  // special case: 0 is matched by (s < n) and (s == 0) so matching multiplier had to be adjusted
+
+  // if (s < 5) { s - 4 } if (s > 5) { s - 5 } if (s == 0) { s + 1 /* -5 total */ }
+  // prettier-ignore
+  #{$light-left}: calc(
+    var(#{$selected-source})
+      - 4 * clamp(0, calc(5 - var(#{$s8})), 1)
+      - 5 * clamp(0, calc(var(#{$s8}) - 5), 1)
+      + 1 * max(0, calc(1 - var(#{$s8})))
+  );
+
+  // if (s < 4) { s - 3 } if (s > 4) if (s == 0) { s + 1 /* -4 total */ }
+  // prettier-ignore
+  #{$light-right}: calc(
+    var(#{$selected-source})
+      - 3 * clamp(0, calc(4 - var(#{$s8})), 1)
+      - 4 * clamp(0, calc(var(#{$s8}) - 4), 1)
+      + 1 * max(0, calc(1 - var(#{$s8})))
+  );
+
+  // if (s < 4) { s + 5 } if (s > 4) { s + 4 } if (s == 0) { s - 1 /* +4 total */ }
+  // prettier-ignore
+  #{$dark-left}: calc(
+    var(#{$selected-source})
+      + 5 * clamp(0, calc(4 - var(#{$s8})), 1)
+      + 4 * clamp(0, calc(var(#{$s8}) - 4), 1)
+      - 1 * max(0, calc(1 - var(#{$s8})))
+  );
+
+  // if (s < 5) { s + 4 } if (s > 5) { s + 3 } if (s == 0) { s - 1 /* +3 total */ }
+  // prettier-ignore
+  #{$dark-right}: calc(
+    var(#{$selected-source})
+      + 4 * clamp(0, calc(5 - var(#{$s8})), 1)
+      + 3 * clamp(0, calc(var(#{$s8}) - 5), 1)
+      - 1 * max(0, calc(1 - var(#{$s8})))
+  );
+
+  // captures
+
+  // if (s > 1) { s - 9 } if (s == 0) { s - 9 }
+  // prettier-ignore
+  #{$light-left-jump}: calc(
+    var(#{$selected-source})
+      - 9 * clamp(0, calc(var(#{$s4}) - 1), 1)
+      - 9 * max(0, calc(1 - var(#{$s4})))
+  );
+
+  // if (s > 0) { s - 7 }
+  // prettier-ignore
+  #{$light-right-jump}: calc(
+    var(#{$selected-source})
+      - 7 * clamp(0, calc(var(#{$s4})), 1)
+  );
+
+  // if (s > 0) { s + 9 }
+  // prettier-ignore
+  #{$dark-left-jump}: calc(
+    var(#{$selected-source})
+      + 9 * clamp(0, calc(var(#{$s4})), 1)
+  );
+
+  // if (s > 1) { s + 7 } if (s == 0) { s + 7 }
+  // prettier-ignore
+  #{$dark-right-jump}: calc(
+    var(#{$selected-source})
+      + 7 * clamp(0, calc(var(#{$s4}) - 1), 1)
+      + 7 * max(0, calc(1 - var(#{$s4})))
+  );
+
+  // update square state variables
+  @for $square from 1 through 32 {
+    &:has(.light-piece .pos:nth-of-type(#{$square}):checked) {
+      #{list.nth($square-states, $square)}: $light;
+    }
+    &:has(.dark-piece .pos:nth-of-type(#{$square}):checked) {
+      #{list.nth($square-states, $square)}: $dark;
+    }
+    &:has(.source:nth-of-type(#{$square}):checked) {
+      #{$selected-source}: #{$square};
+    }
+  }
+
+  // update piece state variables
+  @for $piece from 1 through 24 {
+    &:has(.piece:nth-of-type(#{$piece}) .dead:checked) {
+      #{list.nth($dead-pieces, $piece)}: $true;
+    }
+    &:has(.piece:nth-of-type(#{$piece}) .king:checked) {
+      #{list.nth($kings, $piece)}: $true;
+    }
+  }
+}
+
+@for $source from 1 through 32 {
+  .piece:has(.pos:nth-of-type(#{$source}):checked) {
+    &:has(~ .sources > .source:nth-of-type(#{$source}):checked) {
+      // TODO: Instead of doing a nested loop to select all 32 nth squares,
+      // create z-index vars of each square and multiply each value by the top z-index.
+      // That way, can-move-square-nth can be either 0 or 1,
+      // and all the values will update in the same place once another piece is selected.
+
+      & .pos {
+        // TODO: use blockers instead
+        // allow piece movement when coresponding source is checked
+        // and don't select opponent's pieces
+        // BUG: allows moving light pieces on dark's turn when overlapping (hopefully doesn't cause problems with dead pieces)
+        // BUG: disallows moving light pieces overlapping dark pieces on dark's thurn
+        // $ensure-turn: string.unquote("* var(#{$turn}) * var(#{$selected-piece})");
+        // z-index: max($z-bot, calc($z-top #{$ensure-turn}));
+
+        z-index: $z-hig;
+      }
+    }
+  }
+}
+
+@for $blocker from 1 through 32 {
+  .blocker:nth-of-type(#{$blocker}) {
+    z-index: list.nth($z-blockers, $blocker);
+  }
+}
+
+// TODO: display king
+.piece:has(.king:checked) .pos:checked {
+  background: green;
 }
 
 .board-display {
@@ -44,12 +306,13 @@ $black-shadow: #0d0d0d;
     background-color: $dark-square;
     background-image: $odd-img;
   }
-} 
+}
 
 .board {
   position: absolute;
   width: 640px;
   height: 640px;
+  font-size: 0;
 }
 
 .dark-piece,
@@ -72,11 +335,11 @@ input.dead {
 input.king {
 }
 
-.dark-piece .square:checked {
+.dark-piece .pos:checked {
   background-image: radial-gradient(
     $black-base 50%,
     $black-highlight 52% 60%,
-    $black-shadow 62% 70%,
+    $black-edge 62% 70%,
     transparent 72%
   );
   background-size: 90% 90%;
@@ -84,11 +347,11 @@ input.king {
   background-repeat: no-repeat;
 }
 
-.light-piece .square:checked {
+.light-piece .pos:checked {
   background-image: radial-gradient(
     $red-base 50%,
     $red-highlight 52% 60%,
-    $red-shadow 62% 70%,
+    $red-edge 62% 70%,
     transparent 72%
   );
   background-size: 90% 90%;
@@ -96,7 +359,7 @@ input.king {
   background-repeat: no-repeat;
 }
 
-.squares {
+.positions {
   position: absolute;
   width: 100%;
   height: 100%;
@@ -105,63 +368,68 @@ input.king {
   place-items: center;
 }
 
-.square {
+.pos {
   appearance: none;
   border-radius: 50%;
   height: 100%;
   aspect-ratio: 1/1;
   grid-column: span 2;
   justify-self: start;
+  z-index: var($z-pos);
 }
 
-.square:nth-child(8n+1),
-.square:nth-child(8n+2),
-.square:nth-child(8n+3),
-.square:nth-child(8n+4) {
+.pos:nth-child(8n + 1),
+.pos:nth-child(8n + 2),
+.pos:nth-child(8n + 3),
+.pos:nth-child(8n + 4) {
   justify-self: end;
 }
 
-.square:checked {
-  z-index: 1000;
-}
-
 .sources {
-  display: none;
   position: absolute;
   user-select: none;
   width: 100%;
   height: 100%;
   display: grid;
   grid-template: repeat(8, 1fr) / repeat(8, 1fr);
-  // z-index: 2500;
-  z-index: -1;
 }
 
 .source {
-  display: none;
   grid-column: span 2;
   width: 50%;
   aspect-ratio: 1/1;
   justify-self: start;
-  z-index: 20;
+  z-index: calc(var($z-source) + 1); // above deselect
   opacity: 10%;
 }
 
-.source:nth-child(8n+1),
-.source:nth-child(8n+2),
-.source:nth-child(8n+3),
-.source:nth-child(8n+4) {
+.source:nth-child(8n + 1),
+.source:nth-child(8n + 2),
+.source:nth-child(8n + 3),
+.source:nth-child(8n + 4) {
   justify-self: end;
 }
 
 .deselect {
-  display: none;
   position: absolute;
   height: 100%;
   width: 100%;
-  z-index: 10;
-  opacity: 10%;
+  z-index: var($z-source);
+  opacity: 0%;
 }
 
-.click-shield {
+.blocker {
+  position: relative;
+  display: inline-block;
+  margin: 0 calc(100% / 8) 0 0;
+  width: calc(100% / 8);
+  height: calc(100% / 8);
+  z-index: var($z-blocker);
+}
+
+.blocker:nth-of-type(8n + 1),
+.blocker:nth-of-type(8n + 2),
+.blocker:nth-of-type(8n + 3),
+.blocker:nth-of-type(8n + 4) {
+  margin: 0 0 0 calc(100% / 8);
 }
