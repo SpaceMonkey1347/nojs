@@ -1,29 +1,3 @@
--
-    const TOP = [1, 2, 3, 4]
-    const RIGHT = [4, 12, 20, 28]
-    const BOTTOM = [29, 30, 31, 32]
-    const LEFT = [5, 13, 21, 29]
-
-    function edgeCases(square, className) {
-        let classes = [];
-        if (TOP.includes(square)) {
-            classes.push(`top-${className}`)
-        }
-        if (RIGHT.includes(square)) {
-            classes.push(`right-${className}`)
-        }
-        if (BOTTOM.includes(square)) {
-            classes.push(`bottom-${className}`)
-        }
-        if (LEFT.includes(square)) {
-            classes.push(`left-${className}`)
-        }
-        if (classes.length === 0) {
-            classes.push(`middle-${className}`)
-        }
-        return classes.join(' ')
-    }
-
 mixin piece(player, checked)
     if player == 'light'
         - checked = 32 - checked
@@ -36,9 +10,9 @@ mixin piece(player, checked)
             while count < 32
                 - count++
                 if count == checked
-                    input.pos(class=`${edgeCases(count, 'pos')}` type="radio", name="pos" checked)
+                    input.pos(type="radio", name="pos" checked)
                 else
-                    input.pos(class=`${edgeCases(count, 'pos')}` type="radio", name="pos")
+                    input.pos(type="radio", name="pos")
         .piece-state
             label.dead-label
                 input.dead(type="checkbox")
@@ -69,9 +43,10 @@ html
                     - let count = 0
                     while count < 32
                         - count++
-                        input.source(class=`${edgeCases(count, 'source')}` type="radio" name="source")
-                    input.deselect(type="radio" name="source" checked)
-                - count = 0
-                while count < 32
-                    - count++
-                    .blocker(class=`${edgeCases(count, 'blocker')}`)
+                        input.source(type="radio" name="source")
+                    label.deselect-container
+                        input.deselect(type="radio" name="source" checked)
+                        - count = 0
+                        while count < 32
+                            - count++
+                            .blocker

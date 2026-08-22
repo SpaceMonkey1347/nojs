@@ -17,8 +17,8 @@ app.get("/checkers", (_req, res) => {
 
 app.get("/:key", (req, res) => {
   // console.log(req.params.key)
-  process.stdout.write(req.params.key)
-  return res.sendStatus(400)
-})
+  process.stdout.write(req.params.key);
+  return res.sendStatus(400);
+});
 
 export default app;

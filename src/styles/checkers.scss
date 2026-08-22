@@ -66,6 +66,7 @@ $dark-left-jump: --dlj;
 $dark-right-jump: --drj;
 
 $turn: --t;
+$is-square-selected: --iqs;
 $king-selected: --iks;
 // template name, unused
 $dead-piece: --d;
@@ -111,6 +112,10 @@ $is-king: --ik;
 @include number($dark-left-jump);
 @include number($dark-right-jump);
 
+@for $square from 1 through 32 {
+  @include number(list.nth($z-blockers, $square));
+}
+
 .game-container {
   position: relative;
   width: 100%;
@@ -150,8 +155,13 @@ $is-king: --ik;
 
   // legal move section, defined by setting z-index of blockers to $z-bot
 
+  // TODO: bad behavior: $selected-source == -1 -> -1 % 4 = 3, -1 % 8 = 7
+  // need to add a check for that
   $s8: $selected-source-mod-8;
   $s4: $selected-source-mod-4;
+
+  // used to ensure all moves are 0 when $selected-source == -1 ($nil)
+  #{$is-square-selected}: clamp($false, var(#{$selected-source}), $true);
 
   // determine valid moves based on relative position to selected square
   // not applying turn, piece color, captures, or obstructing pieces just yet.
@@ -159,73 +169,179 @@ $is-king: --ik;
   // s = $selected-source % (8 or 4)
   // special case: 0 is matched by (s < n) and (s == 0) so matching multiplier had to be adjusted
 
-  // if (s < 5) { s - 4 } if (s > 5) { s - 5 } if (s == 0) { s + 1 /* -5 total */ }
+  // if (s < 5) { s - 4 } if (s > 5) { s - 5 } if (s == 0) { s - 1 /* -5 total */ }
   // prettier-ignore
   #{$light-left}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       - 4 * clamp(0, calc(5 - var(#{$s8})), 1)
       - 5 * clamp(0, calc(var(#{$s8}) - 5), 1)
-      + 1 * max(0, calc(1 - var(#{$s8})))
-  );
+      - 1 * max(0, calc(1 - var(#{$s8})))
+  ));
 
-  // if (s < 4) { s - 3 } if (s > 4) if (s == 0) { s + 1 /* -4 total */ }
+  // if (s < 4) { s - 3 } if (s > 4) if (s == 0) { s - 1 /* -4 total */ }
   // prettier-ignore
   #{$light-right}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       - 3 * clamp(0, calc(4 - var(#{$s8})), 1)
       - 4 * clamp(0, calc(var(#{$s8}) - 4), 1)
-      + 1 * max(0, calc(1 - var(#{$s8})))
-  );
+      - 1 * max(0, calc(1 - var(#{$s8})))
+  ));
 
   // if (s < 4) { s + 5 } if (s > 4) { s + 4 } if (s == 0) { s - 1 /* +4 total */ }
   // prettier-ignore
   #{$dark-left}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       + 5 * clamp(0, calc(4 - var(#{$s8})), 1)
       + 4 * clamp(0, calc(var(#{$s8}) - 4), 1)
       - 1 * max(0, calc(1 - var(#{$s8})))
-  );
+  ));
 
   // if (s < 5) { s + 4 } if (s > 5) { s + 3 } if (s == 0) { s - 1 /* +3 total */ }
   // prettier-ignore
   #{$dark-right}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       + 4 * clamp(0, calc(5 - var(#{$s8})), 1)
       + 3 * clamp(0, calc(var(#{$s8}) - 5), 1)
       - 1 * max(0, calc(1 - var(#{$s8})))
-  );
+  ));
 
   // captures
 
   // if (s > 1) { s - 9 } if (s == 0) { s - 9 }
   // prettier-ignore
   #{$light-left-jump}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       - 9 * clamp(0, calc(var(#{$s4}) - 1), 1)
       - 9 * max(0, calc(1 - var(#{$s4})))
-  );
+  ));
 
   // if (s > 0) { s - 7 }
   // prettier-ignore
   #{$light-right-jump}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       - 7 * clamp(0, calc(var(#{$s4})), 1)
-  );
+  ));
 
   // if (s > 0) { s + 9 }
   // prettier-ignore
   #{$dark-left-jump}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       + 9 * clamp(0, calc(var(#{$s4})), 1)
-  );
+  ));
 
   // if (s > 1) { s + 7 } if (s == 0) { s + 7 }
   // prettier-ignore
   #{$dark-right-jump}: calc(
+    var(#{$is-square-selected}) * (
     var(#{$selected-source})
       + 7 * clamp(0, calc(var(#{$s4}) - 1), 1)
       + 7 * max(0, calc(1 - var(#{$s4})))
-  );
+  ));
+
+  $nil-deselect: --nds;
+  #{$nil-deselect}: clamp(-1, var(#{$selected-source}), 1);
+  // bottom when selected piece = nil, top when any legal move matches index
+  @for $blocker from 1 through 32 {
+    // destinations, the source is in the opposite direction than the names imply
+    $ll: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-left}))))"
+    );
+    $lr: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-right}))))"
+    );
+    $dl: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-left}))))"
+    );
+    $dr: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-right}))))"
+    );
+    $llj: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-left-jump}))))"
+    );
+    $lrj: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-right-jump}))))"
+    );
+    $dlj: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-left-jump}))))"
+    );
+    $drj: string.unquote(
+      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-right-jump}))))"
+    );
+
+    // remove impossible move checks
+
+    // from outside the board
+
+    @if $blocker < 5 {
+      $dl: "";
+      $dr: "";
+    }
+
+    @if $blocker < 9 {
+      $dlj: "";
+      $drj: "";
+    }
+
+    @if $blocker > 24 {
+      $llj: "";
+      $lrj: "";
+    }
+
+    @if $blocker > 28 {
+      $ll: "";
+      $lr: "";
+    }
+
+    // edge cases
+
+    // from beyond left edge
+
+    @if $blocker % 8 == 4 {
+      $ll: "";
+      $dr: "";
+      $llj: "";
+      $drj: "";
+    }
+
+    @if $blocker % 8 == 1 {
+      $lrj: "";
+      $dlj: "";
+    }
+
+    // from beyond right edge
+
+    @if $blocker % 8 == 5 {
+      $lr: "";
+      $dl: "";
+      $lrj: "";
+      $dlj: "";
+    }
+
+    @if $blocker % 8 == 0 {
+      $llj: "";
+      $drj: "";
+    }
+
+    #{list.nth($z-blockers, $blocker)}: calc(
+      $z-top *
+        clamp(-1, var(#{$selected-source}), 1)
+        #{$ll}
+        #{$lr}
+        #{$dl}
+        #{$dr}
+        #{$llj}
+        #{$lrj}
+        #{$dlj}
+        #{$drj}
+    );
+  }
 
   // update square state variables
   @for $square from 1 through 32 {
@@ -251,23 +367,11 @@ $is-king: --ik;
   }
 }
 
+// allow piece movement when coresponding source is checked
 @for $source from 1 through 32 {
   .piece:has(.pos:nth-of-type(#{$source}):checked) {
     &:has(~ .sources > .source:nth-of-type(#{$source}):checked) {
-      // TODO: Instead of doing a nested loop to select all 32 nth squares,
-      // create z-index vars of each square and multiply each value by the top z-index.
-      // That way, can-move-square-nth can be either 0 or 1,
-      // and all the values will update in the same place once another piece is selected.
-
       & .pos {
-        // TODO: use blockers instead
-        // allow piece movement when coresponding source is checked
-        // and don't select opponent's pieces
-        // BUG: allows moving light pieces on dark's turn when overlapping (hopefully doesn't cause problems with dead pieces)
-        // BUG: disallows moving light pieces overlapping dark pieces on dark's thurn
-        // $ensure-turn: string.unquote("* var(#{$turn}) * var(#{$selected-piece})");
-        // z-index: max($z-bot, calc($z-top #{$ensure-turn}));
-
         z-index: $z-hig;
       }
     }
@@ -276,7 +380,7 @@ $is-king: --ik;
 
 @for $blocker from 1 through 32 {
   .blocker:nth-of-type(#{$blocker}) {
-    z-index: list.nth($z-blockers, $blocker);
+    z-index: var(list.nth($z-blockers, $blocker));
   }
 }
 
@@ -410,12 +514,18 @@ input.king {
   justify-self: end;
 }
 
+.deselect-container {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+}
+
 .deselect {
   position: absolute;
   height: 100%;
   width: 100%;
   z-index: var($z-source);
-  opacity: 0%;
+  opacity: 10%;
 }
 
 .blocker {
@@ -424,7 +534,8 @@ input.king {
   margin: 0 calc(100% / 8) 0 0;
   width: calc(100% / 8);
   height: calc(100% / 8);
-  z-index: var($z-blocker);
+  background-color: green;
+  // opacity: 20%;
 }
 
 .blocker:nth-of-type(8n + 1),
