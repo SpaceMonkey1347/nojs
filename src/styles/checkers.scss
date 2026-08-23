@@ -1,6 +1,9 @@
 @use "sass:list";
 @use "sass:string";
 
+// prettier-ignore
+@mixin prettier-ignore { @content }
+
 // board colors
 
 $light-square: #f0d9b5;
@@ -251,14 +254,16 @@ $is-king: --ik;
   @for $blocker from 1 through 32 {
     // destinations, the source is in the opposite direction than the names imply
     // prettier-ignore
-    $ll: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left})))");
-    $lr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right})))");
-    $dl: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left})))");
-    $dr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right})))");
-    $llj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left-jump})))");
-    $lrj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right-jump})))");
-    $dlj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left-jump})))");
-    $drj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right-jump})))");
+    @include prettier-ignore {
+      $ll: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left})))");
+      $lr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right})))");
+      $dl: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left})))");
+      $dr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right})))");
+      $llj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left-jump})))");
+      $lrj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right-jump})))");
+      $dlj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left-jump})))");
+      $drj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right-jump})))");
+    }
 
     // remove impossible move checks
 
@@ -314,6 +319,7 @@ $is-king: --ik;
       $drj: "";
     }
 
+    // prettier-ignore
     #{list.nth($z-blockers, $blocker)}: calc(
       $z-top * var(#{$nil-square-selected})
 
