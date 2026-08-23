@@ -56,17 +56,16 @@ $selected-source-mod-4: --s4;
 $selected-piece: --sp;
 
 // valid moves
-$light-left: --ll;
-$light-right: --lr;
-$dark-left: --dl;
-$dark-right: --dr;
-$light-left-jump: --llj;
-$light-right-jump: --lrj;
-$dark-left-jump: --dlj;
-$dark-right-jump: --drj;
+$light-left: --mvll;
+$light-right: --mvlr;
+$dark-left: --mvdl;
+$dark-right: --mvdr;
+$light-left-jump: --mvllj;
+$light-right-jump: --mvlrj;
+$dark-left-jump: --mvdlj;
+$dark-right-jump: --mvdrj;
 
 $turn: --t;
-$is-square-selected: --iqs;
 $king-selected: --iks;
 // template name, unused
 $dead-piece: --d;
@@ -161,6 +160,7 @@ $is-king: --ik;
   $s4: $selected-source-mod-4;
 
   // used to ensure all moves are 0 when $selected-source == -1 ($nil)
+  $is-square-selected: --iqs;
   #{$is-square-selected}: clamp($false, var(#{$selected-source}), $true);
 
   // determine valid moves based on relative position to selected square
@@ -245,35 +245,20 @@ $is-king: --ik;
       + 7 * max(0, calc(1 - var(#{$s4})))
   ));
 
-  $nil-deselect: --nds;
-  #{$nil-deselect}: clamp(-1, var(#{$selected-source}), 1);
+  $nil-square-selected: --nqs;
+  #{$nil-square-selected}: clamp(-1, var(#{$selected-source}), 1);
   // bottom when selected piece = nil, top when any legal move matches index
   @for $blocker from 1 through 32 {
     // destinations, the source is in the opposite direction than the names imply
-    $ll: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-left}))))"
-    );
-    $lr: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-right}))))"
-    );
-    $dl: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-left}))))"
-    );
-    $dr: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-right}))))"
-    );
-    $llj: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-left-jump}))))"
-    );
-    $lrj: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$light-right-jump}))))"
-    );
-    $dlj: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-left-jump}))))"
-    );
-    $drj: string.unquote(
-      "- #{$z-top} * max(0, min(1 - abs(#{$blocker} - var(#{$dark-right-jump}))))"
-    );
+    // prettier-ignore
+    $ll: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left})))");
+    $lr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right})))");
+    $dl: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left})))");
+    $dr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right})))");
+    $llj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left-jump})))");
+    $lrj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right-jump})))");
+    $dlj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left-jump})))");
+    $drj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right-jump})))");
 
     // remove impossible move checks
 
@@ -330,8 +315,20 @@ $is-king: --ik;
     }
 
     #{list.nth($z-blockers, $blocker)}: calc(
-      $z-top *
-        clamp(-1, var(#{$selected-source}), 1)
+      $z-top * var(#{$nil-square-selected})
+
+        // block occupied squares
+        // haven't found problems yet,
+        // but the 2 prevents the clamp from evaluating to 0
+        - #{$z-top}
+        * abs(var(#{list.nth($square-states, $blocker)}))
+        * clamp(-1, calc(1 - 2 * abs(var(#{$selected-source}) - #{$blocker})), 1)
+
+        // unblock on source == empty square
+        - #{$z-top} * 2
+        * max(0,
+            calc(1 - abs(var(#{$selected-source}) * var(#{$selected-piece}))))
+
         #{$ll}
         #{$lr}
         #{$dl}
@@ -535,7 +532,7 @@ input.king {
   width: calc(100% / 8);
   height: calc(100% / 8);
   background-color: green;
-  // opacity: 20%;
+  opacity: 20%;
 }
 
 .blocker:nth-of-type(8n + 1),
