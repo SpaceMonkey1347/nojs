@@ -1,8 +1,47 @@
 @use "sass:list";
 @use "sass:string";
+@use "sass:meta";
 
 // prettier-ignore
 @mixin prettier-ignore { @content }
+
+@function var-table($prefix, $count) {
+  $list: ();
+  // ensure valid variable names
+  @if string.slice($prefix, 1, 2) != "--" {
+    $prefix: --#{$prefix};
+  }
+  @for $index from 1 through $count {
+    $list: list.append($list, #{$prefix}#{$index});
+  }
+  @return $list;
+}
+
+@mixin number($name, $initial-value: 0, $inherits: false) {
+  @if string.slice($name, 1, 2) == "--" {
+    $name: string.slice($name, 3);
+  }
+  @property --#{$name} {
+    syntax: "<number>";
+    inherits: $inherits;
+    initial-value: $initial-value;
+  }
+}
+
+@mixin numbers($list-or-name, $initial-value: 0, $count: 0, $inherits: false) {
+  @if meta.type-of($list-or-name) == list {
+    $list: $list-or-name;
+    @each $name in $list {
+      @include number($name, $initial-value, $inherits);
+    }
+  } @else if meta.type-of($list-or-name) == string {
+    $prefix: $list-or-name;
+    @for $index from 1 through $count {
+      $name: #{$prefix}#{$index};
+      @include number($name, $initial-value, $inherits);
+    }
+  }
+}
 
 // board colors
 
@@ -21,11 +60,11 @@ $black-edge: #0d0d0d;
 
 // semantic variables
 
-$z-bot: 100;
-$z-low: 200;
-$z-mid: 300;
-$z-hig: 400;
-$z-top: 500;
+$z-bot: 100; // hidden
+$z-low: 200; // fixed (sources)
+$z-mid: 300; // pieces
+$z-hig: 400; // blockers (deselect labels)
+$z-top: 500; // captures and dialogs
 
 $light: 1;
 $empty: 0;
@@ -35,30 +74,32 @@ $true: 1;
 $false: 0;
 $nil: -1;
 
-// if (a == b) { return 1 /*($true)*/ } else { return 0 /*($false)*/ }
-@function is_eq($a, $b) {
-  @return string.unquote("max(0, min(1, calc(1 - abs(#{$a} - #{$b}))))");
-}
+$piece-count: 24;
+$square-count: 32;
 
 // OPTIMIZE: compiled file size, short variable names
 
-$z-pos: --zp;
-$z-blocker: --zb;
-$z-blockers: ();
-$z-source: --c;
-// template name, unused
-$square-state: --q;
-$square-states: ();
-@for $square from 1 through 32 {
-  $square-states: list.append($square-states, #{$square-state}#{$square});
-  $z-blockers: list.append($z-blockers, #{$z-blocker}#{$square});
-}
+$z-pos: $z-bot;
+$z-blockers: var-table(--zb, $square-count);
+@include numbers($z-blockers, $inherits: true);
+
+$z-source: $z-low;
+$square-states: var-table(--q, $square-count);
+
 $selected-source: --sc;
 $selected-source-mod-8: --s8;
 $selected-source-mod-4: --s4;
 $selected-piece: --sp;
 
+// source must default to a negative number because 0 will match a piece to empty squares
+@include number($selected-source, -1);
+@include number($selected-source-mod-4);
+@include number($selected-source-mod-8);
+// dev tools will hide a @property variable when it's declaration matches it's `initial-value` unless/until the value is changed
+@include number($selected-piece);
+
 // valid moves
+
 $light-left: --mvll;
 $light-right: --mvlr;
 $dark-left: --mvdl;
@@ -67,43 +108,6 @@ $light-left-jump: --mvllj;
 $light-right-jump: --mvlrj;
 $dark-left-jump: --mvdlj;
 $dark-right-jump: --mvdrj;
-
-$turn: --t;
-$king-selected: --iks;
-// template name, unused
-$dead-piece: --d;
-$dead-pieces: ();
-// template name, unused
-$king: --k;
-$kings: ();
-@for $piece from 1 through 24 {
-  $dead-pieces: list.append($dead-pieces, #{$dead-piece}#{$piece});
-  $kings: list.append($kings, #{$king}#{$piece});
-}
-$is-dead: --id;
-$is-king: --ik;
-
-@mixin number($name, $initial-value: 0) {
-  @if string.slice($name, 1, 2) == "--" {
-    $name: string.slice($name, 3);
-  }
-  @property --#{$name} {
-    syntax: "<number>";
-    inherits: true;
-    initial-value: $initial-value;
-  }
-}
-
-@include number($turn);
-
-// although squares are 1 indexed,
-// source must default to a negative number because 0 will match a piece to empty squares
-@include number($selected-source, -1);
-// dev tools will hide a @property variable when it's declaration matches it's `initial-value` unless/until the value is changed
-@include number($selected-piece, 0);
-
-@include number($selected-source-mod-4);
-@include number($selected-source-mod-8);
 
 @include number($light-left);
 @include number($light-right);
@@ -114,24 +118,26 @@ $is-king: --ik;
 @include number($dark-left-jump);
 @include number($dark-right-jump);
 
-@for $square from 1 through 32 {
-  @include number(list.nth($z-blockers, $square));
-}
+$turn: --t;
+@include number($turn);
+
+$dead-pieces: var-table(--d, $piece-count);
+$kings: var-table(--k, $piece-count);
+
+@include numbers($dead-pieces);
+@include numbers($kings);
 
 .game-container {
   position: relative;
   width: 100%;
   height: 640px;
 
-  #{$z-pos}: #{$z-bot}; // bot or hig
-  #{$z-blocker}: #{$z-low}; // low or top
-  #{$z-source}: #{$z-mid}; // fixed
-  @for $square from 1 through 32 {
+  @for $square from 1 through $square-count {
     #{list.nth($square-states, $square)}: $empty;
-    #{list.nth($z-blockers, $square)}: $z-low;
+    #{list.nth($z-blockers, $square)}: $z-bot;
   }
 
-  @for $piece from 1 through 24 {
+  @for $piece from 1 through $piece-count {
     #{list.nth($dead-pieces, $piece)}: $false;
     #{list.nth($kings, $piece)}: $false;
   }
@@ -142,8 +148,8 @@ $is-king: --ik;
 
   // get square state of selected source (light, dark, empty)
   $sq-check: "";
-  @for $var from 2 through 32 {
-    $sq-check: "#{$sq-check} + (max(0, 1 - abs(var(#{$selected-source}) - abs(var(#{list.nth($square-states, $var)})) * #{$var}))) * var(#{list.nth($square-states, $var)})";
+  @for $square from 2 through $square-count {
+    $sq-check: "#{$sq-check} + (max(0, 1 - abs(var(#{$selected-source}) - abs(var(#{list.nth($square-states, $square)})) * #{$square}))) * var(#{list.nth($square-states, $square)})";
   }
   // prettier-ignore
   #{$selected-piece}: calc(
@@ -153,12 +159,9 @@ $is-king: --ik;
   );
 
   #{$turn}: $light;
-  #{$king-selected}: $false;
 
-  // legal move section, defined by setting z-index of blockers to $z-bot
+  // valid move section, define all relative squares that could possibly be legal
 
-  // TODO: bad behavior: $selected-source == -1 -> -1 % 4 = 3, -1 % 8 = 7
-  // need to add a check for that
   $s8: $selected-source-mod-8;
   $s4: $selected-source-mod-4;
 
@@ -175,93 +178,85 @@ $is-king: --ik;
   // if (s < 5) { s - 4 } if (s > 5) { s - 5 } if (s == 0) { s - 1 /* -5 total */ }
   // prettier-ignore
   #{$light-left}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      - 4 * clamp(0, calc(5 - var(#{$s8})), 1)
-      - 5 * clamp(0, calc(var(#{$s8}) - 5), 1)
-      - 1 * max(0, calc(1 - var(#{$s8})))
-  ));
+      - 4 * clamp(0, 5 - var(#{$s8}), 1)
+      - 5 * clamp(0, var(#{$s8}) - 5, 1)
+      - 1 * max(0, 1 - var(#{$s8}))
+  );
 
   // if (s < 4) { s - 3 } if (s > 4) if (s == 0) { s - 1 /* -4 total */ }
   // prettier-ignore
   #{$light-right}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      - 3 * clamp(0, calc(4 - var(#{$s8})), 1)
-      - 4 * clamp(0, calc(var(#{$s8}) - 4), 1)
-      - 1 * max(0, calc(1 - var(#{$s8})))
-  ));
+      - 3 * clamp(0, 4 - var(#{$s8}), 1)
+      - 4 * clamp(0, var(#{$s8}) - 4, 1)
+      - 1 * max(0, 1 - var(#{$s8}))
+  );
 
   // if (s < 4) { s + 5 } if (s > 4) { s + 4 } if (s == 0) { s - 1 /* +4 total */ }
   // prettier-ignore
   #{$dark-left}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      + 5 * clamp(0, calc(4 - var(#{$s8})), 1)
-      + 4 * clamp(0, calc(var(#{$s8}) - 4), 1)
-      - 1 * max(0, calc(1 - var(#{$s8})))
-  ));
+      + 5 * clamp(0, 4 - var(#{$s8}), 1)
+      + 4 * clamp(0, var(#{$s8}) - 4, 1)
+      - 1 * max(0, 1 - var(#{$s8}))
+  );
 
   // if (s < 5) { s + 4 } if (s > 5) { s + 3 } if (s == 0) { s - 1 /* +3 total */ }
   // prettier-ignore
   #{$dark-right}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      + 4 * clamp(0, calc(5 - var(#{$s8})), 1)
-      + 3 * clamp(0, calc(var(#{$s8}) - 5), 1)
-      - 1 * max(0, calc(1 - var(#{$s8})))
-  ));
+      + 4 * clamp(0, 5 - var(#{$s8}), 1)
+      + 3 * clamp(0, var(#{$s8}) - 5, 1)
+      - 1 * max(0, 1 - var(#{$s8}))
+  );
 
   // captures
 
   // if (s > 1) { s - 9 } if (s == 0) { s - 9 }
   // prettier-ignore
   #{$light-left-jump}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      - 9 * clamp(0, calc(var(#{$s4}) - 1), 1)
-      - 9 * max(0, calc(1 - var(#{$s4})))
-  ));
+      - 9 * clamp(0, var(#{$s4}) - 1, 1)
+      - 9 * max(0, 1 - var(#{$s4}))
+  );
 
   // if (s > 0) { s - 7 }
   // prettier-ignore
   #{$light-right-jump}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      - 7 * clamp(0, calc(var(#{$s4})), 1)
-  ));
+      - 7 * clamp(0, var(#{$s4}), 1)
+  );
 
   // if (s > 0) { s + 9 }
   // prettier-ignore
   #{$dark-left-jump}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      + 9 * clamp(0, calc(var(#{$s4})), 1)
-  ));
+      + 9 * clamp(0, var(#{$s4}), 1)
+  );
 
   // if (s > 1) { s + 7 } if (s == 0) { s + 7 }
   // prettier-ignore
   #{$dark-right-jump}: calc(
-    var(#{$is-square-selected}) * (
     var(#{$selected-source})
-      + 7 * clamp(0, calc(var(#{$s4}) - 1), 1)
-      + 7 * max(0, calc(1 - var(#{$s4})))
-  ));
+      + 7 * clamp(0, var(#{$s4}) - 1, 1)
+      + 7 * max(0, 1 - var(#{$s4}))
+  );
 
   $nil-square-selected: --nqs;
   #{$nil-square-selected}: clamp(-1, var(#{$selected-source}), 1);
   // bottom when selected piece = nil, top when any legal move matches index
   // prettier-ignore
   @for $blocker from 1 through 32 {
-    // destinations, the source is in the opposite direction than the names imply
-    $ll: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left})))");
-    $lr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right})))");
-    $dl: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left})))");
-    $dr: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right})))");
-    $llj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-left-jump})))");
-    $lrj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$light-right-jump})))");
-    $dlj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-left-jump})))");
-    $drj: string.unquote("- 1 - #{$z-top} * max(0, 1 - abs(#{$blocker} - var(#{$dark-right-jump})))");
+    // destinations, the source is in the opposite direction
+    $ll: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$light-left})))");
+    $lr: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$light-right})))");
+    $dl: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$dark-left})))");
+    $dr: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$dark-right})))");
+    $llj: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$light-left-jump})))");
+    $lrj: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$light-right-jump})))");
+    $dlj: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$dark-left-jump})))");
+    $drj: string.unquote("+ 1 * max(0, 1 - abs(#{$blocker} - var(#{$dark-right-jump})))");
 
     // remove impossible move checks
 
@@ -317,68 +312,83 @@ $is-king: --ik;
       $drj: "";
     }
 
+    // $selected-source == $blocker -> 0, else 1
+    $is-blocker-not-selected: string.unquote("(1 - max(0, 1 - abs(#{$blocker} - var(#{$selected-source}))))");
+
+    $is-piece: abs(var(#{list.nth($square-states, $blocker)}));
+
     #{list.nth($z-blockers, $blocker)}: calc(
-      $z-top * var(#{$nil-square-selected})
+      // place on top
+      $z-top
 
-        // block occupied squares
-        // haven't found problems yet,
-        // but the 2 prevents the clamp from evaluating to 0
-        - #{$z-top}
-        * abs(var(#{list.nth($square-states, $blocker)}))
-        * clamp(-1, calc(1 - 2 * abs(var(#{$selected-source}) - #{$blocker})), 1)
+      // --- GLOBAL ---
 
-        // unblock on source == empty square
-        - #{$z-top} * 2
-        * max(0,
-            calc(1 - abs(var(#{$selected-source}) * var(#{$selected-piece}))))
+      // unless a square is selected (not deselect)
+      * var(#{$is-square-selected})
 
-        #{$ll}
-        #{$lr}
-        #{$dl}
-        #{$dr}
-        #{$llj}
-        #{$lrj}
-        #{$dlj}
-        #{$drj}
+      // unless an empty square is selected
+      * abs(var(#{$selected-piece}))
+
+      // --- LOCAL ---
+
+      // unless on the selected square
+      * #{$is-blocker-not-selected}
+
+      // unless is a valid move destination
+      * max(0,
+        1 - (0
+          #{$ll}
+          #{$lr}
+          #{$dl}
+          #{$dr}
+          #{$llj}
+          #{$lrj}
+          #{$dlj}
+          #{$drj}
+        )
+        // but not if occupied by a piece
+        + #{$is-piece}
+      )
+      - 1
     );
   }
 
   // update square state variables
-  @for $square from 1 through 32 {
-    &:has(.light-piece .pos:nth-of-type(#{$square}):checked) {
+  @for $square from 1 through $square-count {
+    &:has(.light-piece > .positions > .pos:nth-of-type(#{$square}):checked) {
       #{list.nth($square-states, $square)}: $light;
     }
-    &:has(.dark-piece .pos:nth-of-type(#{$square}):checked) {
+    &:has(.dark-piece > .positions > .pos:nth-of-type(#{$square}):checked) {
       #{list.nth($square-states, $square)}: $dark;
     }
-    &:has(.source:nth-of-type(#{$square}):checked) {
+    &:has(.sources > .source:nth-of-type(#{$square}):checked) {
       #{$selected-source}: #{$square};
     }
   }
 
   // update piece state variables
-  @for $piece from 1 through 24 {
-    &:has(.piece:nth-of-type(#{$piece}) .dead:checked) {
+  @for $piece from 1 through $piece-count {
+    &:has(.piece:nth-of-type(#{$piece}) > .piece-state > .dead:checked) {
       #{list.nth($dead-pieces, $piece)}: $true;
     }
-    &:has(.piece:nth-of-type(#{$piece}) .king:checked) {
+    &:has(.piece:nth-of-type(#{$piece}) > .piece-state > .king:checked) {
       #{list.nth($kings, $piece)}: $true;
     }
   }
 }
 
 // allow piece movement when coresponding source is checked
-@for $source from 1 through 32 {
-  .piece:has(.pos:nth-of-type(#{$source}):checked) {
-    &:has(~ .sources > .source:nth-of-type(#{$source}):checked) {
+@for $square from 1 through $square-count {
+  .piece:has(.pos:nth-of-type(#{$square}):checked) {
+    &:has(~ .sources > .source:nth-of-type(#{$square}):checked) {
       & .pos {
-        z-index: $z-hig;
+        z-index: $z-mid;
       }
     }
   }
 }
 
-@for $blocker from 1 through 32 {
+@for $blocker from 1 through $square-count {
   .blocker:nth-of-type(#{$blocker}) {
     z-index: var(list.nth($z-blockers, $blocker));
   }
@@ -427,19 +437,7 @@ $is-king: --ik;
   user-select: none;
 }
 
-form.dark-piece {
-}
-
-form.light-piece {
-}
-
-input.dead {
-}
-
-input.king {
-}
-
-.dark-piece .pos:checked {
+.dark-piece > .positions > .pos:checked {
   background-image: radial-gradient(
     $black-base 50%,
     $black-highlight 52% 60%,
@@ -451,7 +449,7 @@ input.king {
   background-repeat: no-repeat;
 }
 
-.light-piece .pos:checked {
+.light-piece > .positions .pos:checked {
   background-image: radial-gradient(
     $red-base 50%,
     $red-highlight 52% 60%,
@@ -479,7 +477,7 @@ input.king {
   aspect-ratio: 1/1;
   grid-column: span 2;
   justify-self: start;
-  z-index: var($z-pos);
+  z-index: $z-pos;
 }
 
 .pos:nth-child(8n + 1),
@@ -503,7 +501,7 @@ input.king {
   width: 50%;
   aspect-ratio: 1/1;
   justify-self: start;
-  z-index: calc(var($z-source) + 1); // above deselect
+  z-index: calc($z-source + 1); // above deselect
   opacity: 10%;
 }
 
@@ -524,7 +522,7 @@ input.king {
   position: absolute;
   height: 100%;
   width: 100%;
-  z-index: var($z-source);
+  z-index: $z-source;
   opacity: 10%;
 }
 
